@@ -46,6 +46,7 @@ exports.onFileChange = functions.storage.object().onFinalize(event => {
 });
 
 exports.uploadFile = functions.https.onRequest((req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
     cors(req, res, () => {
 
         if (req.method !== 'POST') {
