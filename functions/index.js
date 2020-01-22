@@ -96,3 +96,56 @@ exports.uploadFile = functions.https.onRequest((req, res) => {
         busboy.end(req.rawBody);
     });
 });
+
+exports.uploadBanner = functions.https.onRequest((req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    cors(req, res, () => {
+
+        if (req.method !== 'POST') {
+            return res.status(500).json({
+                message: 'Not allowed!'
+            });
+        }
+
+        const busboy = new Busboy({ headers: req.headers });
+        let uploadData = null;
+        let uuid = UUID();
+        const bucketName = 'computer-store-264522.appspot.com';
+
+        busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+            const fileName = new Date().getTime() + filename
+            const filepath = path.join(os.tmpdir(), fileName);
+            uploadData = { file: filepath, type: mimetype, filename: fileName };
+            file.pipe(fs.createWriteStream(filepath));
+        });
+
+        busboy.on('finish', () => {
+            const bucket = gcs.bucket(bucketName);
+
+            return bucket.upload(uploadData.file, {
+                uploadType: 'media',
+                metadata: {
+                    metadata: {
+                        contentType: uploadData.type,
+                        firebaseStorageDownloadTokens: uuid,
+                        isCompressed: true
+                    }
+                }
+            }).then(() => {
+                return downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(uploadData.filename)}?alt=media&token=${uuid}`
+            }).then(downloadUrl => {
+                return res.status(200).json({
+                    message: 'it worked!',
+                    imageUrl: downloadUrl,
+                });
+            }).catch(err => {
+                console.log(err);
+                res.status(500).json({
+                    error: err
+                });
+            });
+        });
+
+        busboy.end(req.rawBody);
+    });
+});
